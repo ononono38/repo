@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import environ
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(DEBUG=(bool, False))
@@ -19,14 +20,13 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY", default="dev-secret")
 DEBUG = env("DEBUG", default=True)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+ALLOWED_HOSTS = ["*"]
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-fiqt*r4e7im&k$@af*t)ada^1$_m+oexldb_rufih8a(2p^cn8'
-
 # SECURITY WARNING: don't run with debug turned on in production!
 
 # Application definition
@@ -76,12 +76,33 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# DB settings:
+# - Prefer OS environment variables (used by systemd via /etc/app.env)
+# - Fall back to .env (local dev)
+# - If DB_HOST is missing, use sqlite (safe fallback)
+
+DB_HOST = os.environ.get("DB_HOST") or env("DB_HOST", default=None)
+
+if DB_HOST:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "HOST": DB_HOST,
+            "PORT": os.environ.get("DB_PORT") or env("DB_PORT", default="5432"),
+            "NAME": os.environ.get("DB_NAME") or env("DB_NAME"),
+            "USER": os.environ.get("DB_USER") or env("DB_USER"),
+            "PASSWORD": os.environ.get("DB_PASSWORD") or env("DB_PASSWORD"),
+            "CONN_MAX_AGE": 60,
+            "OPTIONS": {"sslmode": "require"},
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -126,5 +147,3 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-print("DEBUG=", DEBUG)
-print("ALLOWED_HOSTS=", ALLOWED_HOSTS)
